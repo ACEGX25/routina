@@ -1,7 +1,9 @@
 package com.jin.routina.modules.user;
 
 import com.jin.routina.common.exception.EmailAlreadyExistsException;
+import com.jin.routina.common.exception.InvalidCredentialsException;
 import com.jin.routina.modules.user.dto.AuthResponseDto;
+import com.jin.routina.modules.user.dto.LoginRequestDto;
 import com.jin.routina.modules.user.dto.RegisterRequestDto;
 import com.jin.routina.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +41,7 @@ public class AuthService {
 
         AuthMethod authMethod = new AuthMethod();
         authMethod.setUser(savedUser);
-        authMethod.setAuthType(AuthType.PASSWORD);
+        authMethod.setAuthType(AuthType.PASSWORD );
         authMethod.setPasswordHash(hashedPassword);
         authMethod.setGoogleId(null);
         authMethod.setCreatedAt(now);
@@ -56,6 +58,30 @@ public class AuthService {
         authResponseDto.setName(savedUser.getName());
 
         return authResponseDto;
+    }
+
+    public AuthResponseDto login(LoginRequestDto request){
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(InvalidCredentialsException::new);
+
+        AuthMethod authMethod = authMethodRepository.findByUserAndAuthType(user , AuthType.PASSWORD)
+                .orElseThrow(InvalidCredentialsException::new);
+
+        if(!passwordEncoder.matches(request.getPassword(), authMethod.getPasswordHash())){
+            throw new InvalidCredentialsException();
+        }
+
+        String token = jwtUtil.generateToken(user.getId().toString());
+
+        AuthResponseDto authResponseDto = new AuthResponseDto();
+        authResponseDto.setToken(token);
+        authResponseDto.setId(user.getId());
+        authResponseDto.setEmail(user.getEmail());
+        authResponseDto.setName(user.getName());
+
+
+        return authResponseDto;
+
     }
 
 }
